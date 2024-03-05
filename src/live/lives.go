@@ -117,6 +117,7 @@ type Live interface {
 	GetLastStartTime() time.Time
 	SetLastStartTime(time.Time)
 	GetHeadersForDownloader() map[string]string
+	GetOptions() *Options
 }
 
 type WrappedLive struct {
