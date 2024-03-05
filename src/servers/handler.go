@@ -14,7 +14,6 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
-	"github.com/tidwall/gjson"
 	"gopkg.in/yaml.v2"
 
 	"github.com/hr3lxphr6j/bililive-go/src/configs"
@@ -142,31 +141,40 @@ func addLives(writer http.ResponseWriter, r *http.Request) {
 	inst := instance.GetInstance(r.Context())
 	info := liveSlice(make([]*live.Info, 0))
 	errorMessages := make([]string, 0, 4)
-	gjson.ParseBytes(b).ForEach(func(key, value gjson.Result) bool {
-		isListen := value.Get("listen").Bool()
-		urlStr := strings.Trim(value.Get("url").String(), " ")
-		if retInfo, err := addLiveImpl(r.Context(), urlStr, isListen); err != nil {
-			msg := urlStr + ": " + err.Error()
+
+	var liveConfigs []configs.LiveRoom
+	err = json.Unmarshal(b, &liveConfigs)
+	if err != nil {
+		writeJSON(writer, map[string]interface{}{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	for _, liveConfig := range liveConfigs {
+		retInfo, err := addLiveImpl(r.Context(), &liveConfig)
+		if err != nil {
+			msg := liveConfig.Url + ": " + err.Error()
 			inst.Logger.Error(msg)
 			errorMessages = append(errorMessages, msg)
-			return true
-		} else {
-			info = append(info, retInfo)
+			continue
 		}
-		return true
-	})
+
+		info = append(info, retInfo)
+	}
 	sort.Sort(info)
 	// TODO return error messages too
 	writeJSON(writer, info)
 }
 
-func addLiveImpl(ctx context.Context, urlStr string, isListen bool) (info *live.Info, err error) {
-	if !strings.HasPrefix(urlStr, "http://") && !strings.HasPrefix(urlStr, "https://") {
-		urlStr = "https://" + urlStr
+func addLiveImpl(ctx context.Context, liveConfig *configs.LiveRoom) (info *live.Info, err error) {
+	liveConfig.Url = strings.Trim(liveConfig.Url, " ")
+	if !strings.HasPrefix(liveConfig.Url, "http://") && !strings.HasPrefix(liveConfig.Url, "https://") {
+		liveConfig.Url = "https://" + liveConfig.Url
 	}
-	u, err := url.Parse(urlStr)
+	u, err := url.Parse(liveConfig.Url)
 	if err != nil {
-		return nil, errors.New("can't parse url: " + urlStr)
+		return nil, errors.New("can't parse url: " + liveConfig.Url)
 	}
 	inst := instance.GetInstance(ctx)
 	opts := make([]live.Option, 0)
@@ -179,17 +187,14 @@ func addLiveImpl(ctx context.Context, urlStr string, isListen bool) (info *live.
 	}
 	if _, ok := inst.Lives[newLive.GetLiveId()]; !ok {
 		inst.Lives[newLive.GetLiveId()] = newLive
-		if isListen {
+		if liveConfig.IsListening {
 			inst.ListenerManager.(listeners.Manager).AddListener(ctx, newLive)
 		}
 		info = parseInfo(ctx, newLive)
 
-		liveRoom := configs.LiveRoom{
-			Url:         u.String(),
-			IsListening: isListen,
-			LiveId:      newLive.GetLiveId(),
-		}
-		inst.Config.LiveRooms = append(inst.Config.LiveRooms, liveRoom)
+		liveConfig.Url = u.String()
+		liveConfig.LiveId = newLive.GetLiveId()
+		inst.Config.LiveRooms = append(inst.Config.LiveRooms, *liveConfig)
 	}
 	return info, nil
 }
@@ -318,7 +323,7 @@ func applyLiveRoomsByConfig(ctx context.Context, newLiveRooms []configs.LiveRoom
 		newUrlMap[newRoom.Url] = &newRoom
 		if room, err := currentConfig.GetLiveRoomByUrl(newRoom.Url); err != nil {
 			// add live
-			if _, err := addLiveImpl(ctx, newRoom.Url, newRoom.IsListening); err != nil {
+			if _, err := addLiveImpl(ctx, room); err != nil {
 				return err
 			}
 		} else {
