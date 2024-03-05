@@ -150,6 +150,11 @@ func (p *Parser) ParseLiveStream(ctx context.Context, url *url.URL, live live.Li
 		"-c", "copy",
 		"-bsf:a", "aac_adtstoasc",
 	}
+
+	if live.GetOptions().AudioOnly {
+		args = append(args, "-vn")
+	}
+
 	for k, v := range headers {
 		if k == "User-Agent" || k == "Referer" {
 			continue
