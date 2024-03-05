@@ -144,7 +144,7 @@ func (r *recorder) tryRecord(ctx context.Context) {
 		fileName = fileName[:len(fileName)-4] + ".ts"
 	}
 
-	if info.AudioOnly {
+	if r.Live.GetOptions().AudioOnly {
 		fileName = fileName[:strings.LastIndex(fileName, ".")] + ".aac"
 	}
 

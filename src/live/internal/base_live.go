@@ -61,3 +61,7 @@ func (a *BaseLive) GetStreamUrls() ([]*url.URL, error) {
 func (a *BaseLive) GetStreamInfos() ([]*live.StreamUrlInfo, error) {
 	return nil, live.ErrNotImplemented
 }
+
+func (a *BaseLive) GetOptions() *live.Options {
+	return a.Options
+}

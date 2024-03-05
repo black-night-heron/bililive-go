@@ -119,6 +119,7 @@ type Live interface {
 	GetPlatformCNName() string
 	GetLastStartTime() time.Time
 	SetLastStartTime(time.Time)
+	GetOptions() *Options
 }
 
 type WrappedLive struct {
