@@ -145,7 +145,7 @@ func (r *recorder) tryRecord(ctx context.Context) {
 	}
 
 	if r.Live.GetOptions().AudioOnly {
-		fileName = fileName[:strings.LastIndex(fileName, ".")] + ".aac"
+		fileName = fileName[:strings.LastIndex(fileName, ".")] + ".m4a"
 	}
 
 	if err = mkdir(outputPath); err != nil {
